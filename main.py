@@ -11,7 +11,7 @@ def main():
     # ETAPE 1 : Utiliser le MGD pour créer une Cible
     # ---------------------------------------------------------
     # On choisit une configuration "Bras levé et plié" (arbitraire)
-    q_cible_connue = [0, np.pi / 2, -np.pi / 4, 0, -np.pi / 2, 0]
+    q_cible_connue = [0, np.pi / 2, 0, 0, 0, 0]
 
     # On calcule où se trouve l'outil pour cette configuration
     matrices_cible = generate_transformation_matrices(q_cible_connue, dh)

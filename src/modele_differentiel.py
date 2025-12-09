@@ -3,7 +3,9 @@ from src.matrice_tn import generate_transformation_matrices, calcul_T06_global
 
 
 def calculate_z_and_o(T):
-    """ Extrait le vecteur Z (axe de rotation) et l'origine O (position) d'une matrice 4x4. """
+    """
+    Extrait le vecteur Z (axe de rotation) et l'origine O (position) d'une matrice 4x4.
+    """
     z = T[:3, 2]  # 3ème colonne : vecteur Z
     o = T[:3, 3]  # 4ème colonne : position O
     return z, o
@@ -12,38 +14,53 @@ def calculate_z_and_o(T):
 def Jacob_geo(matrices, Debug=False):
     """
     Calcule la Matrice Jacobienne Géométrique (6x6) pour l'UR3.
+    Utilise la convention DH Modifié (l'axe i est porté par z_i).
     """
-    # 1. Calcul des matrices cumulées (T01, T02, ... T06)
-    T_cumul = []
-    current_T = np.eye(4)
+    # 1. Calcul des matrices cumulées absolues (T01, T02, ... T06)
+    T_abs = []
+    T_curr = np.eye(4)
 
-    for T in matrices:
-        current_T = np.dot(current_T, T)
-        T_cumul.append(current_T)
+    for M in matrices:
+        T_curr = np.dot(T_curr, M)
+        T_abs.append(T_curr)
 
-    # Position de l'organe terminal (OT)
-    _, ot = calculate_z_and_o(T_cumul[5])
+    # Position de l'organe terminal (OT) -> Origine du repère 6
+    _, ot = calculate_z_and_o(T_abs[5])
+
+    if Debug:
+        print(f"Debug Jacobienne - OT: {ot}")
 
     # 2. Calcul des colonnes de la Jacobienne
-    J_cols = []
+    cols = []
     for i in range(6):
         # En DH Modifié, l'axe moteur i est porté par z_i de la matrice T0i
-        zi, oi = calculate_z_and_o(T_cumul[i])
+        zi, oi = calculate_z_and_o(T_abs[i])
 
-        # Partie Linéaire (Jv) = z_i ^ (OT - O_i)
-        Jv = np.cross(zi, ot - oi)
+        # Vitesse Linéaire Jv = z_i ^ (OT - O_i)
+        vec_levier = ot - oi
+        Jv = np.cross(zi, vec_levier)
 
-        # Partie Angulaire (Jw) = z_i
+        # Vitesse Angulaire Jw = z_i
         Jw = zi
 
-        # Concaténation
-        J_col = np.concatenate((Jv, Jw))
-        J_cols.append(J_col)
+        # Concaténation pour faire une colonne de 6 éléments
+        col = np.concatenate((Jv, Jw))
+        cols.append(col)
 
-    # Création de la matrice (Transposée)
-    J = np.array(J_cols).T
-
+    # Création de la matrice (Transposée car on a ajouté colonne par colonne)
+    J = np.array(cols).T
     return J
+
+
+def MDD(dq, J):
+    """ Modèle Différentiel Direct : Vitesse Articulaire -> Vitesse Cartésienne """
+    return np.dot(J, dq)
+
+
+def MDI(dX, J):
+    """ Modèle Différentiel Inverse : Vitesse Cartésienne -> Vitesse Articulaire """
+    # pinv (pseudo-inverse) gère les cas où la matrice est singulière
+    return np.dot(np.linalg.pinv(J), dX)
 
 
 def MGI_numerique(target_pos, q_init, dh_params, max_iter=100, tol=1e-4, alpha=0.5, Debug=False):
@@ -59,12 +76,12 @@ def MGI_numerique(target_pos, q_init, dh_params, max_iter=100, tol=1e-4, alpha=0
         print(f"Cible : {target_pos}")
 
     for i in range(max_iter):
-        # 1. Calculer la position actuelle
-        matrices = generate_transformation_matrices(q, dh_params)
-        T06 = calcul_T06_global(matrices)
-        curr_pos = T06[:3, 3]  # [x, y, z]
+        # 1. Où est-on ? (MGD)
+        mats = generate_transformation_matrices(q, dh_params)
+        T06 = calcul_T06_global(mats)
+        curr_pos = T06[:3, 3]
 
-        # 2. Calculer l'erreur
+        # 2. Erreur
         err = target_pos - curr_pos
         err_norm = np.linalg.norm(err)
 
@@ -77,15 +94,16 @@ def MGI_numerique(target_pos, q_init, dh_params, max_iter=100, tol=1e-4, alpha=0
             # Normalisation des angles entre -pi et pi
             return (q + np.pi) % (2 * np.pi) - np.pi
 
-        # 4. Calculer la Jacobienne
-        J = Jacob_geo(matrices)
-
-        # 5. Inversion (On ne corrige que la position X,Y,Z -> 3 premières lignes)
+        # 4. Correction via Jacobienne Inverse
+        J = Jacob_geo(mats)
+        # On ne corrige que la position X,Y,Z -> on prend les 3 premières lignes
         J_pos = J[:3, :]
+
         dq = np.dot(np.linalg.pinv(J_pos), err)
 
-        # 6. Mise à jour avec Gain (alpha) pour la stabilité
+        # 5. Mise à jour avec Gain (alpha) pour la stabilité
         q = q + alpha * dq
 
-    print(f"Echec MGI : Erreur finale {err_norm:.4f}")
+    if Debug:
+        print(f"Echec MGI : Erreur finale {err_norm:.4f}m")
     return None
