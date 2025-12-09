@@ -1,10 +1,9 @@
 import numpy as np
+from src.matrice_tn import generate_transformation_matrices, calcul_T06_global
 
 
 def calculate_z_and_o(T):
-    """
-    Extrait le vecteur Z (axe de rotation) et l'origine O (position) d'une matrice 4x4.
-    """
+    """ Extrait le vecteur Z (axe de rotation) et l'origine O (position) d'une matrice 4x4. """
     z = T[:3, 2]  # 3ème colonne : vecteur Z
     o = T[:3, 3]  # 4ème colonne : position O
     return z, o
@@ -22,70 +21,71 @@ def Jacob_geo(matrices, Debug=False):
         current_T = np.dot(current_T, T)
         T_cumul.append(current_T)
 
-    # T_cumul contient [T01, T02, T03, T04, T05, T06]
-
-    # 2. Initialisation Base
-    z0 = np.array([0, 0, 1])  # Axe Z de la base
-    o0 = np.array([0, 0, 0])  # Origine de la base
-
-    # 3. Extraction des Z et O pour chaque repère
-    # Note: L'indice i correspond à la transformation T0(i+1)
-    zs = [z0]
-    os = [o0]
-
-    # On récupère z et o pour les repères 1 à 5 (le repère 6 sert pour l'OT)
-    for i in range(5):
-        z, o = calculate_z_and_o(T_cumul[i])
-        zs.append(z)
-        os.append(o)
-
-    # Position de l'organe terminal (OT) -> Origine du repère 6
+    # Position de l'organe terminal (OT)
     _, ot = calculate_z_and_o(T_cumul[5])
 
-    if Debug:
-        print("\n--- Debug Jacobienne ---")
-        print(f"OT (Position Outil): {ot}")
-
-    # 4. Calcul des colonnes de la Jacobienne
-    # J_i = [ z_{i-1} x (OT - O_{i-1}) ]  <- Vitesse linéaire
-    #       [ z_{i-1}                  ]  <- Vitesse angulaire
-
+    # 2. Calcul des colonnes de la Jacobienne
     J_cols = []
     for i in range(6):
-        z_prev = zs[i]
-        o_prev = os[i]
+        # En DH Modifié, l'axe moteur i est porté par z_i de la matrice T0i
+        zi, oi = calculate_z_and_o(T_cumul[i])
 
-        # Partie Linéaire (Jv)
-        Jv = np.cross(z_prev, ot - o_prev)
+        # Partie Linéaire (Jv) = z_i ^ (OT - O_i)
+        Jv = np.cross(zi, ot - oi)
 
-        # Partie Angulaire (Jw)
-        Jw = z_prev
+        # Partie Angulaire (Jw) = z_i
+        Jw = zi
 
-        # Concaténation pour faire une colonne de 6 éléments
+        # Concaténation
         J_col = np.concatenate((Jv, Jw))
         J_cols.append(J_col)
 
-    # Création de la matrice (Transposée car on a ajouté colonne par colonne)
+    # Création de la matrice (Transposée)
     J = np.array(J_cols).T
 
     return J
 
 
-def MDD(dq, J):
+def MGI_numerique(target_pos, q_init, dh_params, max_iter=100, tol=1e-4, alpha=0.5, Debug=False):
     """
-    Modèle Différentiel Direct : Calcule la vitesse de l'outil (dX)
-    à partir des vitesses articulaires (dq).
-    dX = J * dq
+    Inverse Kinematics (MGI) par méthode de Newton-Raphson amortie.
+    Retrouve les angles q pour atteindre target_pos [x,y,z].
     """
-    return np.dot(J, dq)
+    q = np.array(q_init, dtype=float)
+    target_pos = np.array(target_pos, dtype=float)
 
+    if Debug:
+        print(f"\n--- Début MGI Numérique ---")
+        print(f"Cible : {target_pos}")
 
-def MDI(dX, J):
-    """
-    Modèle Différentiel Inverse : Calcule les vitesses articulaires (dq)
-    à partir de la vitesse d'outil désirée (dX).
-    dq = inv(J) * dX
-    Utilise la pseudo-inverse pour la robustesse.
-    """
-    # pinv (pseudo-inverse) gère les cas où la matrice est singulière ou mal conditionnée
-    return np.dot(np.linalg.pinv(J), dX)
+    for i in range(max_iter):
+        # 1. Calculer la position actuelle
+        matrices = generate_transformation_matrices(q, dh_params)
+        T06 = calcul_T06_global(matrices)
+        curr_pos = T06[:3, 3]  # [x, y, z]
+
+        # 2. Calculer l'erreur
+        err = target_pos - curr_pos
+        err_norm = np.linalg.norm(err)
+
+        if Debug and i % 10 == 0:
+            print(f"Iter {i}: Erreur = {err_norm:.5f} m")
+
+        # 3. Condition d'arrêt
+        if err_norm < tol:
+            if Debug: print(f"Succès MGI en {i} itérations !")
+            # Normalisation des angles entre -pi et pi
+            return (q + np.pi) % (2 * np.pi) - np.pi
+
+        # 4. Calculer la Jacobienne
+        J = Jacob_geo(matrices)
+
+        # 5. Inversion (On ne corrige que la position X,Y,Z -> 3 premières lignes)
+        J_pos = J[:3, :]
+        dq = np.dot(np.linalg.pinv(J_pos), err)
+
+        # 6. Mise à jour avec Gain (alpha) pour la stabilité
+        q = q + alpha * dq
+
+    print(f"Echec MGI : Erreur finale {err_norm:.4f}")
+    return None

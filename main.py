@@ -1,46 +1,60 @@
 import numpy as np
 from src.const_v import dh
 from src.matrice_tn import generate_transformation_matrices, calcul_T06_global
-from src.modele_differentiel import Jacob_geo, MDD
+from src.modele_differentiel import MGI_numerique
 
 
 def main():
-    print("=== Simulation Robot UR3 - MGD & Jacobienne ===\n")
+    print("=== PROJET UR3 : Validation MGD & MGI ===\n")
 
-    # 1. Configuration des angles (q)
-    # Exemple : [0, 90°, 0, 0, -90°, 0]
-    q_test = [0, np.pi / 2, 0, 0, -np.pi / 2, 0]
-    print(f"Configuration q : {np.round(q_test, 3)}")
+    # ---------------------------------------------------------
+    # ETAPE 1 : Utiliser le MGD pour créer une Cible
+    # ---------------------------------------------------------
+    # On choisit une configuration "Bras levé et plié" (arbitraire)
+    q_cible_connue = [0, np.pi / 2, -np.pi / 4, 0, -np.pi / 2, 0]
 
-    # 2. Calcul des Matrices de Transformation
-    matrices = generate_transformation_matrices(q_test, dh)
+    # On calcule où se trouve l'outil pour cette configuration
+    matrices_cible = generate_transformation_matrices(q_cible_connue, dh)
+    T06_cible = calcul_T06_global(matrices_cible)
+    position_xyz_cible = T06_cible[:3, 3]
 
-    # Calcul de la position finale (MGD)
-    T06 = calcul_T06_global(matrices)
-    pos_finale = T06[:3, 3]
+    print("1. DEFINITION DE LA CIBLE (via MGD) :")
+    print(f"   Angles réels : {np.round(q_cible_connue, 3)}")
+    print(f"   Position XYZ calculée : {np.round(position_xyz_cible, 4)}")
+    print("-" * 50)
 
-    print("\n--- Modèle Géométrique Direct (MGD) ---")
-    print(f"Position Outil (x, y, z) : {np.round(pos_finale, 4)}")
+    # ---------------------------------------------------------
+    # ETAPE 2 : Utiliser le MGI pour retrouver les angles
+    # ---------------------------------------------------------
+    # On efface la mémoire du robot : on le met dans une position neutre
+    q_depart = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
 
-    # 3. Calcul de la Jacobienne
-    J = Jacob_geo(matrices, Debug=True)
+    print("2. RESOLUTION MGI (Le robot cherche la cible...) :")
+    q_trouve = MGI_numerique(position_xyz_cible, q_depart, dh, alpha=0.5, Debug=True)
 
-    print("\n--- Matrice Jacobienne (J) ---")
-    # Affichage propre
-    with np.printoptions(precision=3, suppress=True):
-        print(J)
+    print("-" * 50)
 
-    # 4. Test du Modèle Différentiel Direct (MDD)
-    # On applique une petite vitesse sur l'axe 1 et l'axe 6
-    dq_test = [0.1, 0, 0, 0, 0, 0.1]
+    # ---------------------------------------------------------
+    # ETAPE 3 : Vérification Finale
+    # ---------------------------------------------------------
+    if q_trouve is not None:
+        print("3. VERIFICATION :")
+        print(f"   Angles trouvés par MGI : {np.round(q_trouve, 3)}")
 
-    vitesse_outil = MDD(dq_test, J)
+        # On recalcule la position avec les angles trouvés pour voir si on est bon
+        mats_verif = generate_transformation_matrices(q_trouve, dh)
+        pos_verif = calcul_T06_global(mats_verif)[:3, 3]
 
-    print("\n--- Test MDD ---")
-    print(f"Vitesses articulaires dq : {dq_test}")
-    print(f"Vitesse Outil résultante [vx vy vz wx wy wz] :")
-    with np.printoptions(precision=4, suppress=True):
-        print(vitesse_outil)
+        dist = np.linalg.norm(pos_verif - position_xyz_cible)
+        print(f"   Position atteinte      : {np.round(pos_verif, 4)}")
+        print(f"   Précision (Erreur)     : {dist:.6f} m")
+
+        if dist < 1e-3:
+            print("\n   >>> SUCCES : Le MGI et le MGD sont cohérents ! <<<")
+        else:
+            print("\n   >>> ECHEC : Précision insuffisante. <<<")
+    else:
+        print("Erreur critique : Le MGI n'a pas trouvé de solution.")
 
 
 if __name__ == "__main__":
