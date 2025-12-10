@@ -113,8 +113,6 @@ def MGI_numerique(target_pos, q_init, dh_params, max_iter=100, tol=1e-4, alpha=0
 def Jacob_analytique(q_val=None, Debug=False):
     """
     Calcule la Jacobienne Analytique (Symbolique) pour l'UR3.
-    Adapté du projet DigiTwin pour le robot UR3 (6 axes, DH Modifié).
-
     Args:
         q_val (list, optional): Valeurs numériques des angles [q1...q6] (en radians).
                                 Si fourni, retourne la matrice numérique.
@@ -126,8 +124,6 @@ def Jacob_analytique(q_val=None, Debug=False):
     # 1. Définition des symboles
     # q1..q6 sont les variables, les autres sont les paramètres géométriques constants
     q1, q2, q3, q4, q5, q6 = sp.symbols('q1 q2 q3 q4 q5 q6')
-
-    # Paramètres UR3 (provenant de votre const_v.py)
     r1, r2, r4, r5, r6 = 0.152, 0.120, 0.010, 0.083, 0.082
     a2, a3 = 0.244, 0.213
 
