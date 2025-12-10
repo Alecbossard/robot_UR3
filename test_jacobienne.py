@@ -1,8 +1,8 @@
-import numpy as np
-from src.const_v import dh
 from src.matrice_tn import generate_transformation_matrices, calcul_T06_global
-from src.modele_differentiel import Jacob_geo
-
+from src.modele_differentiel import Jacob_geo, Jacob_analytique
+from src.matrice_tn import generate_transformation_matrices
+from src.const_v import dh
+import numpy as np
 
 def mgd_position(q):
     """ Helper : Renvoie juste (x,y,z) pour une config q """
@@ -71,6 +71,27 @@ def test_jacobienne_validation():
         print(">>> RÉSULTAT : Il y a des erreurs dans la Jacobienne.")
         print("Vérifiez vos produits vectoriels ou la convention (DH Modifié vs Standard).")
     print("==================================================")
+
+    print("\n\n==================================================")
+
+
+    q_test = [0.1, -0.5, 0.8, -0.2, 0.5, 0.1]
+
+    print("1. Calcul Numérique (Jacob_geo)...")
+    mats = generate_transformation_matrices(q_test, dh)
+    J_geo = Jacob_geo(mats)
+
+    print("2. Calcul Analytique (Jacob_analytique)...")
+    J_ana = Jacob_analytique(q_test)
+
+    print("\n--- Comparaison ---")
+    diff = np.linalg.norm(J_geo - J_ana)
+    print(f"Différence Norme : {diff:.6e}")
+
+    if diff < 1e-10:
+        print(">>> SUCCÈS : Les deux méthodes donnent le même résultat !")
+    else:
+        print(">>> ATTENTION : Il y a une divergence.")
 
 
 if __name__ == "__main__":
