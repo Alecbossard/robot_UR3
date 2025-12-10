@@ -1,19 +1,9 @@
-# UR3 Robot Kinematics (MGD / MGI)
+# UR3 Robot – Kinematics and Trajectory Generation (Python)
 
-Small educational Python project for modelling the kinematics of the 6‑DOF **UR3** manipulator.
+This repository contains a small educational project for modelling the kinematics and differential behaviour of the 6‑DOF **UR3** manipulator, and for generating a **circular Cartesian trajectory** followed by a **joint–space trajectory**.
 
-The code implements:
-
-- **Modified DH model** (Khalil / Craig style) for the UR3 arm
-- **Forward kinematics (MGD)**: computation of all `T_i^{i-1}` and global `T_0^6`
-- **Geometric Jacobian** of the robot
-- **Differential models**:
-  - MDD (Modèle Différentiel Direct): joint velocities → end‑effector twist
-  - MDI (Modèle Différentiel Inverse) via Jacobian pseudo‑inverse
-- **Numerical inverse kinematics (MGI)** using an iterative Jacobian‑based solver
-- A set of **validation tests** checking consistency between MGD and Jacobian
-
-The project was written as part of a robotics course to validate the modelling of a UR3 robot in Python.
+The code was written in the context of a robotics course on serial‑robot modelling (modélisation robotique).  
+Most comments are in French, but all function names and scripts are explicit and kept short for learning purposes.
 
 ---
 
@@ -21,39 +11,104 @@ The project was written as part of a robotics course to validate the modelling o
 
 ```text
 robot_UR3-main/
-├── main.py                    # Demo script: creates a target with MGD, solves it with MGI and checks the error
-├── test_validation.py         # Validation tests for MGD and the Jacobian
+├── main.py                     # Demo: forward kinematics (MGD) + numerical inverse kinematics (MGI)
+├── main_traj.py                # Full pipeline: motion law + Cartesian circle + task analysis + joint trajectory
+├── test_mgd.py                 # Console tests for forward kinematics
+├── test_mgi.py                 # Console tests for numerical inverse kinematics
+├── test_mdd_mdi.py             # Console tests for MDD / MDI differential models
+├── test_jacobienne.py          # Console tests for geometric & analytic Jacobians
 ├── src/
 │   ├── __init__.py
-│   ├── const_v.py             # UR3 geometric constants + modified DH parameters
-│   ├── matrice_tn.py          # DH transformation matrices (T_{i-1}^i) and global T_0^6 computation
-│   └── modele_differentiel.py # Geometric Jacobian, MDD, MDI, numerical MGI based on the Jacobian
-└── README.md                  # This file
+│   ├── const_v.py              # UR3 geometric constants + modified DH parameters and helper conversions
+│   ├── matrice_tn.py           # DH transformation matrices and global T_0^6 computation
+│   ├── modele_differentiel.py  # Geometric & analytic Jacobians, MDD, MDI, numerical IK
+│   ├── part1_loi_mouvement.py  # Time law s(t) for the circular trajectory
+│   ├── part2_trajectoire_operationnelle.py  # Cartesian circle X(t), dX(t), ddX(t)
+│   ├── part3_analyse_tache.py  # Task‑space analysis (speed of a point of interest)
+│   ├── part4_generation_articulaire.py      # Joint‑space trajectory generation q(t), dq(t), ddq(t)
+│   └── utils.py                # Small numerical / plotting helpers
+└── README.md                   # This file
 ```
-
-The comments in the source files are mostly in French, but the function names are explicit and kept short for educational use.
 
 ---
 
-## 2. Requirements
+## 2. Features
 
-- Python **3.9+** (recommended)
-- Packages:
+### Kinematic model (UR3)
+
+- **Modified DH model** (Khalil / Craig style) for the UR3 arm.
+- **Forward kinematics (MGD)**:
+  - Elemental transforms `T_{i-1}^i(q_i)` for each joint.
+  - Global transform `T_0^6(q)` giving end‑effector pose.
+- **Numerical inverse kinematics (MGI)**:
+  - Iterative Jacobian‑based solver.
+  - Position‑only IK (x, y, z) using a pseudo‑inverse of the Jacobian.
+  - Simple damping / step‑size control for convergence.
+
+### Jacobians and differential models
+
+Implemented in `src/modele_differentiel.py`:
+
+- **Geometric Jacobian** `J_geo(q)` (6×6) built from the homogeneous transforms.
+- **Analytic Jacobian** `J_ana(q)` for position‑only tasks.
+- **MDD (Modèle Différentiel Direct)**:
+  - Joint velocities `dq` → end‑effector twist `V = J · dq`.
+- **MDI (Modèle Différentiel Inverse)**:
+  - Desired twist `V_d` → joint velocities `dq` via pseudo‑inverse `J^+`.
+
+### Trajectory generation (circular path)
+
+Implemented in the `partX_*.py` modules and orchestrated by `main_traj.py`:
+
+1. **Time law `s(t)`** (V.1 – `part1_loi_mouvement.py`)
+   - Piecewise motion profile A → B → C → A over a circle:
+     - Acceleration phase
+     - Constant‑speed phase
+     - Deceleration phase
+   - Returns time vector, `s(t)`, `ṡ(t)`, `s̈(t)` and switching instants.
+
+2. **Operational (task‑space) trajectory** (V.2 – `part2_trajectoire_operationnelle.py`)
+   - Circular trajectory in Cartesian space around a centre `O = [Cx, Cy, Cz]` with radius `R`.
+   - Computes:
+     - Position `X(t)` of the point on the circle.
+     - Velocity `dX(t)` and acceleration `ddX(t)`.
+
+3. **Task analysis** (V.3 – `part3_analyse_tache.py`)
+   - Computes the speed of a specific point of interest of the robot along the path.
+   - Allows visualising how the UR3 base motion translates into task‑space motion.
+
+4. **Joint‑space trajectory** (V.4 – `part4_generation_articulaire.py`)
+   - Uses the numerical IK and Jacobians to generate:
+     - Joint positions `q(t)`
+     - Joint velocities `dq(t)`
+     - Joint accelerations `ddq(t)`
+   - Includes simple plotting utilities to inspect each joint over time.
+
+---
+
+## 3. Requirements
+
+- Python **3.9+** (recommended).
+- Python packages:
   - `numpy`
+  - `matplotlib`
+  - `sympy` (used for some symbolic checks / utilities)
 
 You can install the dependencies with:
 
 ```bash
-pip install numpy
+pip install numpy matplotlib sympy
 ```
 
-If you prefer, you can also create a small `requirements.txt` containing:
+If you prefer, create a `requirements.txt`:
 
 ```text
 numpy
+matplotlib
+sympy
 ```
 
-and then run:
+then run:
 
 ```bash
 pip install -r requirements.txt
@@ -61,139 +116,95 @@ pip install -r requirements.txt
 
 ---
 
-## 3. How it works (short explanation)
+## 4. Quick start
 
-### 3.1 Kinematic model (DH)
+Clone or unzip this repository, then in a terminal:
 
-The file `src/const_v.py` contains:
+```bash
+cd robot_UR3-main
+```
 
-- The **geometric dimensions** of the UR3 (link lengths, offsets…)
-- The **modified DH parameters** (arrays `a_i_m1`, `alpha_i_m1`, `r_i`, `theta_offset`, etc.)
-
-The function `generate_transformation_matrices(...)` in `src/matrice_tn.py`:
-
-1. Builds each homogeneous transform `T_{i-1}^i(q_i)` using the modified DH convention.
-2. Stacks all 6 transforms in a list.
-3. Multiplies them to obtain the global transform `T_0^6` with `calcul_T06_global(...)`.
-
-This gives the **forward kinematics (MGD)** of the UR3.
-
-### 3.2 Geometric Jacobian & differential models
-
-In `src/modele_differentiel.py`:
-
-- `Jacob_geo(matrices, Debug=False)` computes the **geometric Jacobian (6×6)** from the list of transforms:
-  - For each joint, the `z_i` axis and origin `O_i` are extracted.
-  - The linear and angular parts are assembled into the standard Jacobian form.
-
-- `MDD(dq, J)` implements the **direct differential model**:
-  - Input: joint velocities `dq`
-  - Output: end‑effector twist (linear + angular velocity) `V = J · dq`
-
-- `MGI_numerique(...)` implements a **numerical inverse kinematics**:
-  - Iterative correction of the joint vector `q` to reduce the position error
-  - Uses the pseudo‑inverse of the Jacobian (only the 3 first rows for XYZ position)
-  - Simple damping / gain parameter for stability
-
-The solver is **local**: convergence is guaranteed only near the initial guess and does not handle joint limits or obstacles.
-
----
-
-## 4. Running the project
-
-From the root of the project (`robot_UR3-main/`), run:
+### 4.1. Kinematics demo (MGD + MGI)
 
 ```bash
 python main.py
 ```
 
-What `main.py` does:
+This script:
 
-1. Chooses a **known configuration** `q_cible_connue` (e.g. “arm up & bent”).
-2. Uses the **forward kinematics (MGD)** to compute the corresponding end‑effector position `T_0^6`.
-3. Calls the **numerical MGI (`MGI_numerique`)** to find a configuration `q_sol` that reaches this target.
-4. Re‑applies the MGD with `q_sol` and compares the obtained position with the initial target.
-5. Prints the **final error** and a success/failure message depending on the precision (e.g. < 1e‑3 m).
+1. Chooses a **known joint configuration**.
+2. Uses the **forward kinematics** to compute the corresponding end‑effector pose.
+3. Feeds this pose as a **target** to the numerical IK solver.
+4. Prints the resulting joint solution and the position error.
 
-You should see an output similar to:
+This is a simple sanity‑check that MGD and MGI are consistent.
 
-```text
-=== PROJET UR3 : Validation MGD & MGI ===
-
-1. DEFINITION DE LA CIBLE (MGD)
-   q cible connue       : [...]
-   Position cible (xyz) : [...]
-
-2. RESOLUTION MGI (Le robot cherche la cible...)
-   Solution trouvée q*  : [...]
-   Position atteinte    : [...]
-   Précision (Erreur)   : 0.000xxx m
-
-   >>> SUCCES : Le MGI et le MGD sont cohérents ! <<<
-```
-
-(Exact values depend on the chosen configuration and numerical tolerances.)
-
----
-
-## 5. Validation tests
-
-To run the validation scripts:
+### 4.2. Full circular trajectory pipeline
 
 ```bash
-python test_validation.py
+python main_traj.py
 ```
 
-This script performs:
+This script:
 
-1. **Forward kinematics checks** on specific joint configurations:
-   - Zero configuration
-   - “Straight arm” or other analytically known poses
-   - Compares the resulting position `T_0^6` to the expected one (within a tight tolerance)
+1. Defines a circular path in front of the robot (centre `O`, radius `R`, speed `V`).
+2. Computes the **time law** `s(t)` and the Cartesian circle `X(t)`.
+3. Evaluates the **task‑space velocities**.
+4. Generates the **joint‑space trajectory** `q(t), dq(t), ddq(t)` using the IK.
+5. Displays several **matplotlib plots**:
+   - Motion law `s(t)`, `ṡ(t)`, `s̈(t)`
+   - Cartesian position / velocity / acceleration
+   - Joint trajectories over time
 
-2. **Jacobian validation**:
-   - Computes an approximate Jacobian by finite differences using the MGD
-   - Compares it to the analytic Jacobian from `Jacob_geo`
-   - Prints a pass/fail message depending on the norm of the difference
-
-If everything is consistent, you should see messages like:
-
-```text
-=== TEST 1 : VALIDATION DU MGD (Positions connues) ===
-...
->>> SUCCESS : Le MGD est cohérent avec le modèle géométrique.
-
-=== TEST 2 : VALIDATION DE LA JACOBIENNE ===
-...
->>> SUCCESS : La Jacobienne est mathématiquement cohérente avec le MGD.
-```
+Feel free to adjust the circle parameters (`O`, `R`, `V`) directly in `main_traj.py`.
 
 ---
 
-## 6. Limitations & possible extensions
+## 5. Tests and validation scripts
 
-Current limitations:
+The project comes with small console‑based tests (no external testing framework required):
 
-- Only **position** is used in the inverse kinematics (no orientation target).
-- No handling of **joint limits** or **collision constraints**.
-- The numerical solver is a basic Jacobian pseudo‑inverse with a fixed step size.
+```bash
+# Forward kinematics checks (positions, known configurations)
+python test_mgd.py
 
-Possible extensions:
+# Numerical inverse kinematics checks (convergence, error)
+python test_mgi.py
 
-- Extend `MGI_numerique` to also control the **end‑effector orientation**.
-- Add **joint limits** and basic **singularity handling**.
-- Implement a **damped least‑squares** (Levenberg–Marquardt style) IK solver.
-- Connect the model to a **simulator** (PyBullet, Gazebo, etc.) or to a real UR3 via ROS.
+# Differential models (MDD / MDI) and twist consistency
+python test_mdd_mdi.py
+
+# Geometric vs analytic Jacobians and simple numerical comparisons
+python test_jacobienne.py
+```
+
+Each script prints intermediate values and errors in the terminal to help understand what is happening.
 
 ---
 
-## 7. Author & context
+## 6. How to reuse / extend the code
 
-This repository is intended for **educational use** in a robotics course (modélisation robotique / kinematics of serial robots).  
+A few ideas if you want to go further:
 
-Feel free to adapt it to:
+- Replace the DH parameters in `src/const_v.py` to model another **6‑DOF robot**.
+- Add **orientation control** in the numerical IK (full 6D task instead of position‑only).
+- Connect the model to a **simulator** (e.g. PyBullet, Gazebo) by sending the joint trajectories `q(t)`.
+- Wrap the core functions into a **Jupyter notebook** for interactive teaching.
+- Implement alternative motion laws (polynomial trajectories, trapezoidal velocity, etc.).
 
-- Other 6‑DOF arms (by changing the DH parameters)
-- Teaching material (TP / labs)
-- Quick prototypes for kinematics and Jacobian‑based control.
+---
 
+## 7. Educational context
+
+This repository is intended for **educational use** in a robotics / kinematics course:
+
+- Understanding **DH modelling** and homogeneous transforms.
+- Practising **geometric & analytic Jacobians**.
+- Linking **task‑space trajectories** to **joint‑space trajectories**.
+- Experimenting with **numerical inverse kinematics** and differential control.
+
+You are free to adapt the code for:
+
+- Lab sessions (TP)
+- Course support material
+- Quick prototypes for kinematic or trajectory‑generation experiments
