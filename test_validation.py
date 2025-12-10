@@ -31,13 +31,13 @@ def test_validation_mgd():
     # --- Cas B : Position "Chandelle" (Bras Vertical) ---
     # q2 = pi/2 (pour lever le bras a2)
     # q4 = -pi/2 (pour aligner le poignet)
-    q_vertical = [0, np.pi / 2, 0, -np.pi / 2, 0, 0]
+    q_vertical = [0, np.pi / 2, 0, 0, 0, 0]
 
     mats_v = generate_transformation_matrices(q_vertical, dh)
     T_v = calcul_T06_global(mats_v)
     pos_v = T_v[:3, 3]
 
-    print(f"\nConfiguration q = [0, -pi/2, 0, -pi/2, 0, 0] (Verticale)")
+    print(f"\nConfiguration q = [0, pi/2, 0, 0, 0, 0] (Verticale)")
     print(f"Position calculée : X={pos_v[0]:.3f}, Y={pos_v[1]:.3f}, Z={pos_v[2]:.3f}")
 
     # Vérification: Z doit être proche de la hauteur max (~0.77m ou 0.69m selon poignet)

@@ -17,3 +17,4 @@ dh = {
     "r_i":        [r1,     -r2,       0,      r4,      r5,      r6     ], # r_i
     "theta_offset": [np.pi/2, 0,     0,      np.pi/2, 0,      -np.pi/2] # Offsets (q_fig)
 }
+
