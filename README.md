@@ -1,210 +1,127 @@
-# UR3 Robot – Kinematics and Trajectory Generation (Python)
+# Projet UR3 – Modélisation cinématique et génération de trajectoire (Python)
 
-This repository contains a small educational project for modelling the kinematics and differential behaviour of the 6‑DOF **UR3** manipulator, and for generating a **circular Cartesian trajectory** followed by a **joint–space trajectory**.
+Ce dépôt contient un petit projet pédagogique autour du robot **UR3** :
+- Modèle géométrique direct (MGD) et inverse (MGI)
+- Jacobienne et modèle différentiel
+- Génération d’une **trajectoire circulaire** dans le plan (X, Z) et conversion en trajectoire articulaire
 
-The code was written in the context of a robotics course on serial‑robot modelling (modélisation robotique).  
-Most comments are in French, but all function names and scripts are explicit and kept short for learning purposes.
-
----
-
-## 1. Repository structure
-
-```text
-robot_UR3-main/
-├── main.py                     # Demo: forward kinematics (MGD) + numerical inverse kinematics (MGI)
-├── main_traj.py                # Full pipeline: motion law + Cartesian circle + task analysis + joint trajectory
-├── test_mgd.py                 # Console tests for forward kinematics
-├── test_mgi.py                 # Console tests for numerical inverse kinematics
-├── test_mdd_mdi.py             # Console tests for MDD / MDI differential models
-├── test_jacobienne.py          # Console tests for geometric & analytic Jacobians
-├── src/
-│   ├── __init__.py
-│   ├── const_v.py              # UR3 geometric constants + modified DH parameters and helper conversions
-│   ├── matrice_tn.py           # DH transformation matrices and global T_0^6 computation
-│   ├── modele_differentiel.py  # Geometric & analytic Jacobians, MDD, MDI, numerical IK
-│   ├── part1_loi_mouvement.py  # Time law s(t) for the circular trajectory
-│   ├── part2_trajectoire_operationnelle.py  # Cartesian circle X(t), dX(t), ddX(t)
-│   ├── part3_analyse_tache.py  # Task‑space analysis (speed of a point of interest)
-│   ├── part4_generation_articulaire.py      # Joint‑space trajectory generation q(t), dq(t), ddq(t)
-│   └── utils.py                # Small numerical / plotting helpers
-└── README.md                   # This file
-```
+Objectif (exigences client) : le client doit pouvoir
+- **entrer/modifier** le centre du cercle **O**, le rayon **R** et la vitesse **V**
+- **tester** la fonction `traj(O, R, V)`
+- **visualiser** toutes les courbes demandées (voir section “Sorties minimales attendues”)
 
 ---
 
-## 2. Features
+## Prérequis
 
-### Kinematic model (UR3)
+- Python 3.x
+- Dépendances : `numpy`, `matplotlib`, `sympy`
 
-- **Modified DH model** (Khalil / Craig style) for the UR3 arm.
-- **Forward kinematics (MGD)**:
-  - Elemental transforms `T_{i-1}^i(q_i)` for each joint.
-  - Global transform `T_0^6(q)` giving end‑effector pose.
-- **Numerical inverse kinematics (MGI)**:
-  - Iterative Jacobian‑based solver.
-  - Position‑only IK (x, y, z) using a pseudo‑inverse of the Jacobian.
-  - Simple damping / step‑size control for convergence.
-
-### Jacobians and differential models
-
-Implemented in `src/modele_differentiel.py`:
-
-- **Geometric Jacobian** `J_geo(q)` (6×6) built from the homogeneous transforms.
-- **Analytic Jacobian** `J_ana(q)` for position‑only tasks.
-- **MDD (Modèle Différentiel Direct)**:
-  - Joint velocities `dq` → end‑effector twist `V = J · dq`.
-- **MDI (Modèle Différentiel Inverse)**:
-  - Desired twist `V_d` → joint velocities `dq` via pseudo‑inverse `J^+`.
-
-### Trajectory generation (circular path)
-
-Implemented in the `partX_*.py` modules and orchestrated by `main_traj.py`:
-
-1. **Time law `s(t)`** (V.1 – `part1_loi_mouvement.py`)
-   - Piecewise motion profile A → B → C → A over a circle:
-     - Acceleration phase
-     - Constant‑speed phase
-     - Deceleration phase
-   - Returns time vector, `s(t)`, `ṡ(t)`, `s̈(t)` and switching instants.
-
-2. **Operational (task‑space) trajectory** (V.2 – `part2_trajectoire_operationnelle.py`)
-   - Circular trajectory in Cartesian space around a centre `O = [Cx, Cy, Cz]` with radius `R`.
-   - Computes:
-     - Position `X(t)` of the point on the circle.
-     - Velocity `dX(t)` and acceleration `ddX(t)`.
-
-3. **Task analysis** (V.3 – `part3_analyse_tache.py`)
-   - Computes the speed of a specific point of interest of the robot along the path.
-   - Allows visualising how the UR3 base motion translates into task‑space motion.
-
-4. **Joint‑space trajectory** (V.4 – `part4_generation_articulaire.py`)
-   - Uses the numerical IK and Jacobians to generate:
-     - Joint positions `q(t)`
-     - Joint velocities `dq(t)`
-     - Joint accelerations `ddq(t)`
-   - Includes simple plotting utilities to inspect each joint over time.
-
----
-
-## 3. Requirements
-
-- Python **3.9+** (recommended).
-- Python packages:
-  - `numpy`
-  - `matplotlib`
-  - `sympy` (used for some symbolic checks / utilities)
-
-You can install the dependencies with:
+Installation recommandée :
 
 ```bash
-pip install numpy matplotlib sympy
-```
+python -m venv .venv
+# Linux / macOS
+source .venv/bin/activate
+# Windows (PowerShell)
+.venv\Scripts\Activate.ps1
 
-If you prefer, create a `requirements.txt`:
-
-```text
-numpy
-matplotlib
-sympy
-```
-
-then run:
-
-```bash
 pip install -r requirements.txt
 ```
 
 ---
 
-## 4. Quick start
+## Exécution rapide
 
-Clone or unzip this repository, then in a terminal:
-
-```bash
-cd robot_UR3-main
-```
-
-### 4.1. Kinematics demo (MGD + MGI)
-
-```bash
-python main.py
-```
-
-This script:
-
-1. Chooses a **known joint configuration**.
-2. Uses the **forward kinematics** to compute the corresponding end‑effector pose.
-3. Feeds this pose as a **target** to the numerical IK solver.
-4. Prints the resulting joint solution and the position error.
-
-This is a simple sanity‑check that MGD and MGI are consistent.
-
-### 4.2. Full circular trajectory pipeline
+Le programme de base à lancer pour générer la trajectoire complète et afficher les figures est :
 
 ```bash
 python main_traj.py
 ```
 
-This script:
-
-1. Defines a circular path in front of the robot (centre `O`, radius `R`, speed `V`).
-2. Computes the **time law** `s(t)` and the Cartesian circle `X(t)`.
-3. Evaluates the **task‑space velocities**.
-4. Generates the **joint‑space trajectory** `q(t), dq(t), ddq(t)` using the IK.
-5. Displays several **matplotlib plots**:
-   - Motion law `s(t)`, `ṡ(t)`, `s̈(t)`
-   - Cartesian position / velocity / acceleration
-   - Joint trajectories over time
-
-Feel free to adjust the circle parameters (`O`, `R`, `V`) directly in `main_traj.py`.
+Le script ouvre plusieurs fenêtres matplotlib. Fermer une fenêtre permet de passer à la suivante.
 
 ---
 
-## 5. Tests and validation scripts
+## Modifier O, R, V (paramètres de la trajectoire)
 
-The project comes with small console‑based tests (no external testing framework required):
+Dans `main_traj.py`, modifier directement :
+
+- `O = [Ox, Oy, Oz]` (m) : centre du cercle dans l’espace opérationnel
+- `R` (m) : rayon du cercle
+- `V` (m/s) : vitesse cible de l’outil le long de la trajectoire
+
+Remarque : la trajectoire est dans le plan **(X, Z)**, donc **y(t) est constant** (= `Oy`).
+
+---
+
+## Sorties minimales attendues
+
+L’exécution de `python main_traj.py` affiche au minimum :
+
+1) **Loi de mouvement**
+- Les trois courbes : `s(t)`, `ṡ(t)`, `s̈(t)`
+- Avec l’affichage des **temps de commutation** (`t1`, `t2`, `tf`) :
+  - imprimés dans la console
+  - et tracés par des lignes verticales (pointillées) sur les graphes
+
+2) **Coordonnées cartésiennes (plan X, Z)**
+- Les trois courbes : `x(t)`, `ẋ(t)`, `ẍ(t)` avec `t1`, `t2`
+- Les trois courbes : `z(t)`, `ż(t)`, `z̈(t)` avec `t1`, `t2`
+- (Optionnel) `y(t)`, `ẏ(t)`, `ÿ(t)` : inutile car `y` est constant
+
+3) **Vitesse de l’outil**
+- Courbe de la vitesse scalaire : `||V_OE(t)|| = ||Ẋ(t)||`
+
+4) **Trajectoire opérationnelle**
+- Trajectoire `X(s)` dans l’espace opérationnel (∈ R³) via un `plot3` (cercle dans l’espace)
+
+5) **Trajectoires articulaires**
+- Courbes `q(t)` et `q̇(t)` pour **chaque articulation** (UR3 = 6 liaisons)
+- (Souvent affiché aussi) `q̈(t)`
+- Avec l’affichage des temps de commutation `t1`, `t2`
+
+6) **Erreurs consigne vs robot simulé**
+- Erreurs sur la position : `e_X(t) = X_consigne(t) - X_robot(t)`
+- Erreurs sur la vitesse : `e_Ẋ(t) = Ẋ_consigne(t) - Ẋ_robot(t)`
+- Où `X_robot` est recalculé par MGD à partir de `q(t)` et `Ẋ_robot` par `J(q)·q̇(t)`
+- Les erreurs attendues sont très faibles (principalement dues au bruit numérique)
+
+---
+
+## Structure du dépôt
+
+```text
+robot_UR3-main/
+├── main_traj.py                 # Pipeline complet : V.1 -> V.4 + affichages + erreurs
+├── main.py                      # Démo MGD/MGI
+├── src/
+│   ├── part1_loi_mouvement.py   # s(t), ṡ(t), s̈(t) + temps de commutation + plots
+│   ├── part2_trajectoire_operationnelle.py  # X(t), Ẋ(t), Ẍ(t) + trajectoire 3D
+│   ├── part3_analyse_tache.py   # vitesse outil + affichages + calcul erreurs X et Ẋ
+│   ├── part4_generation_articulaire.py      # traj(O,R,V) + q, q̇, q̈ + plots
+│   ├── const_v.py               # Constantes / paramètres (DH, etc.)
+│   ├── matrice_tn.py            # Matrices homogènes / MGD
+│   └── modele_differentiel.py   # Jacobienne / modèles différentiels
+└── tests_*.py                   # Scripts simples de validation
+```
+
+---
+
+## Scripts de test (optionnels)
 
 ```bash
-# Forward kinematics checks (positions, known configurations)
 python test_mgd.py
-
-# Numerical inverse kinematics checks (convergence, error)
 python test_mgi.py
-
-# Differential models (MDD / MDI) and twist consistency
 python test_mdd_mdi.py
-
-# Geometric vs analytic Jacobians and simple numerical comparisons
 python test_jacobienne.py
 ```
 
-Each script prints intermediate values and errors in the terminal to help understand what is happening.
+Ces scripts aident à vérifier séparément la MGD, la MGI et les Jacobiennes.
 
 ---
 
-## 6. How to reuse / extend the code
+## Notes
 
-A few ideas if you want to go further:
-
-- Replace the DH parameters in `src/const_v.py` to model another **6‑DOF robot**.
-- Add **orientation control** in the numerical IK (full 6D task instead of position‑only).
-- Connect the model to a **simulator** (e.g. PyBullet, Gazebo) by sending the joint trajectories `q(t)`.
-- Wrap the core functions into a **Jupyter notebook** for interactive teaching.
-- Implement alternative motion laws (polynomial trajectories, trapezoidal velocity, etc.).
-
----
-
-## 7. Educational context
-
-This repository is intended for **educational use** in a robotics / kinematics course:
-
-- Understanding **DH modelling** and homogeneous transforms.
-- Practising **geometric & analytic Jacobians**.
-- Linking **task‑space trajectories** to **joint‑space trajectories**.
-- Experimenting with **numerical inverse kinematics** and differential control.
-
-You are free to adapt the code for:
-
-- Lab sessions (TP)
-- Course support material
-- Quick prototypes for kinematic or trajectory‑generation experiments
+- Pour limiter le nombre de fenêtres, les affichages sont regroupés en **triplets** quand c’est possible (subplots).
+- Si tu veux enregistrer les figures : utiliser le bouton “Save” de matplotlib, ou ajouter des `plt.savefig(...)` dans les fonctions d’affichage.
