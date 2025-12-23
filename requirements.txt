@@ -1,0 +1,4 @@
+# Dépendances Python pour le projet robot_UR3
+numpy
+matplotlib
+sympy

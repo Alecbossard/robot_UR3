@@ -60,31 +60,42 @@ def traj(O, R, V, Debug=False):
     return time, q, qp, qpp
 
 
-def plot_resultats_articulaires(time, q, qp, qpp):
-    """ Affiche les courbes q, q_dot, q_ddot """
+def plot_resultats_articulaires(time, q, qp, qpp, temps_commutation=None):
+    """ Affiche les courbes q, q_dot, q_ddot (avec temps de commutation si fournis) """
+
     fig, axes = plt.subplots(3, 1, figsize=(10, 12), sharex=True)
     labels = [f'q{i + 1}' for i in range(6)]
 
     # Positions
-    for i in range(6): axes[0].plot(time, q[:, i], label=labels[i])
+    for i in range(6):
+        axes[0].plot(time, q[:, i], label=labels[i])
     axes[0].set_title('Positions Articulaires q(t)')
-    axes[0].set_ylabel('rad');
-    axes[0].legend(loc='right', fontsize='small');
+    axes[0].set_ylabel('rad')
+    axes[0].legend(loc='right', fontsize='small')
     axes[0].grid(True)
 
     # Vitesses
-    for i in range(6): axes[1].plot(time, qp[:, i], label=labels[i])
-    # Utilisation de r'' pour éviter les warning d'échappement
+    for i in range(6):
+        axes[1].plot(time, qp[:, i], label=labels[i])
     axes[1].set_title(r'Vitesses Articulaires $\dot{q}(t)$')
-    axes[1].set_ylabel('rad/s');
+    axes[1].set_ylabel('rad/s')
     axes[1].grid(True)
 
     # Accélérations
-    for i in range(6): axes[2].plot(time, qpp[:, i], label=labels[i])
+    for i in range(6):
+        axes[2].plot(time, qpp[:, i], label=labels[i])
     axes[2].set_title(r'Accélérations Articulaires $\ddot{q}(t)$')
-    axes[2].set_ylabel('rad/s²');
-    axes[2].set_xlabel('Temps (s)');
+    axes[2].set_ylabel('rad/s²')
+    axes[2].set_xlabel('Temps (s)')
     axes[2].grid(True)
+
+    # Ajout des temps de commutation t1, t2 si on les a
+    if temps_commutation is not None:
+        t1, t2, tf = temps_commutation
+
+        for axe in axes:
+            axe.axvline(t1, color='k', ls='--', alpha=0.5)
+            axe.axvline(t2, color='k', ls='--', alpha=0.5)
 
     plt.tight_layout()
     plt.show()

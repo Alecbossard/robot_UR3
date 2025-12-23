@@ -4,8 +4,16 @@ import matplotlib.pyplot as plt
 # Import des modules refactorisés
 from src.part1_loi_mouvement import calcul_loi_mouvement, afficher_courbes_loi_mouvement
 from src.part2_trajectoire_operationnelle import calcul_trajectoire_operationnelle, afficher_courbes_operationnelles
-from src.part3_analyse_tache import calcul_vitesse_OE, afficher_tache_X_t
+from src.part3_analyse_tache import (
+    calcul_vitesse_OE,
+    afficher_tache_X_t,
+    calcul_X_robot_et_erreurs,
+    afficher_erreurs_X,
+)
+
 from src.part4_generation_articulaire import traj, plot_resultats_articulaires
+
+
 
 
 def main():
@@ -60,7 +68,7 @@ def main():
     print(f" -> Vitesse max atteinte par OE : {v_max_atteinte:.4f} m/s (Cible : {V} m/s)")
     print(" -> Affichage des composantes X(t) et de la vitesse |OE|... (Fermez la fenêtre)")
 
-    afficher_tache_X_t(time, X, dX, ddX, v_norm)
+    afficher_tache_X_t(time, X, dX, ddX, v_norm, transitions)
     print("OK.\n")
 
     # =========================================================================
@@ -69,14 +77,30 @@ def main():
     print("--- V.4 : Génération de mouvement articulaire q(t) ---")
     print(" -> Calcul MGI + MDI (Cela peut prendre quelques secondes)...")
 
-    # La fonction traj réutilise la logique V1/V2 en interne et applique MGI/MDI
-    # On lui passe Debug=False pour ne pas ré-afficher les courbes internes maintenant
     t_art, q, qp, qpp = traj(O, R, V, Debug=False)
 
     print(f" -> Trajectoire générée : {len(t_art)} points.")
     print(" -> Affichage des résultats articulaires (Positions, Vitesses, Accélérations)...")
 
     plot_resultats_articulaires(t_art, q, qp, qpp)
+
+    # ================================================================
+    # ANALYSE DES ERREURS SUR X(t) ET Xdot(t)
+    # ================================================================
+    print("\n--- Analyse des erreurs sur X(t) et Xdot(t) ---")
+
+    # On utilise le même vecteur de temps 'time' que pour X, dX, ddX
+    X_robot, dX_robot, erreur_X, erreur_dX = calcul_X_robot_et_erreurs(
+        time,  # temps de la trajectoire opérationnelle
+        X,  # consigne de position
+        dX,  # consigne de vitesse
+        q,  # trajectoire articulaire
+        qp  # vitesses articulaires
+    )
+
+    print(" -> Affichage des erreurs cartésiennes (position et vitesse)...")
+    afficher_erreurs_X(time, erreur_X, erreur_dX)
+
     print("\n=== SIMULATION TERMINÉE ===")
 
 
