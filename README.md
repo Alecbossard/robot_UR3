@@ -108,7 +108,7 @@ robot_UR3-main/
 
 ---
 
-## Scripts de test (optionnels)
+## Scripts de test 
 
 ```bash
 python test_mgd.py
