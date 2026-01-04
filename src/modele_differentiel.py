@@ -28,9 +28,6 @@ def Jacob_geo(matrices, Debug=False):
     # Position de l'organe terminal (OT) -> Origine du repère 6
     _, ot = calculate_z_and_o(T_abs[5])
 
-    if Debug:
-        print(f"Debug Jacobienne - OT: {ot}")
-
     # 2. Calcul des colonnes de la Jacobienne
     cols = []
     for i in range(6):
@@ -196,12 +193,6 @@ def Jacob_analytique(q_val=None, Debug=False):
     for i in range(1, 6):
         J_sym = J_sym.row_join(cols[i])
 
-    if Debug:
-        print("\n--- Debug Jacobienne Analytique (Symbolique) ---")
-        print("La matrice est calculée. Affichage des termes simplifiés (peut être long)...")
-        # On affiche juste la dimension pour confirmer
-        print(f"Dimension J: {J_sym.shape}")
-        # sp.pprint(J_sym) # Décommenter si vous voulez voir les équations (très larges !)
 
     # 4. Évaluation Numérique (si q_val est fourni)
     if q_val is not None:

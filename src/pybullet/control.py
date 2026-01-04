@@ -5,11 +5,10 @@ Created on Tue Nov  4 14:48:07 2025
 
 @author: taix
 """
-import numpy as np
 import pybullet as p
 import time
-import affiche
-  
+from src.pybullet import affiche
+
 F_CONTROL = 10000
 sleep_time = 1/F_CONTROL 
 
@@ -46,7 +45,7 @@ def setJointPosition(robot_id, control_joints, position, kp=1.0, kv=1.0):
         p.stepSimulation()
         time.sleep(sleep_time)
         
-    frame_ee = affiche.update_joint_frame(robot_id,7 ,frame_ee)
+    frame_ee = affiche.update_joint_frame(robot_id, 7, frame_ee)
 
 #################################################################
     #function to do joint velcoity control
