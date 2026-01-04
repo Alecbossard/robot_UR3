@@ -68,7 +68,7 @@ L’exécution de `python main_traj.py` affiche au minimum :
 2) **Coordonnées cartésiennes (plan X, Z)**
 - Les trois courbes : `x(t)`, `ẋ(t)`, `ẍ(t)` avec `t1`, `t2`
 - Les trois courbes : `z(t)`, `ż(t)`, `z̈(t)` avec `t1`, `t2`
-- (Optionnel) `y(t)`, `ẏ(t)`, `ÿ(t)` : inutile car `y` est constant
+- `y(t)`, `ẏ(t)`, `ÿ(t)` : inutile car `y` est constant
 
 3) **Vitesse de l’outil**
 - Courbe de la vitesse scalaire : `||V_OE(t)|| = ||Ẋ(t)||`
