@@ -121,7 +121,3 @@ Ces scripts aident à vérifier séparément la MGD, la MGI et les Jacobiennes.
 
 ---
 
-## Notes
-
-- Pour limiter le nombre de fenêtres, les affichages sont regroupés en **triplets** quand c’est possible (subplots).
-- Si tu veux enregistrer les figures : utiliser le bouton “Save” de matplotlib, ou ajouter des `plt.savefig(...)` dans les fonctions d’affichage.
