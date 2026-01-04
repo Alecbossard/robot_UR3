@@ -8,7 +8,7 @@ Ce dépôt contient un petit projet pédagogique autour du robot **UR3** :
 Objectif (exigences client) : le client doit pouvoir
 - **entrer/modifier** le centre du cercle **O**, le rayon **R** et la vitesse **V**
 - **tester** la fonction `traj(O, R, V)`
-- **visualiser** toutes les courbes demandées (voir section “Sorties minimales attendues”)
+- **visualiser** toutes les courbes demandées
 
 ---
 
